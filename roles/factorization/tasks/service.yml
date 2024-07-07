@@ -1,0 +1,5 @@
+
+- name: Execute script
+  command: bash /opt/parse.sh > /etc/ansible/facts.d/packages.fact
+  register: result
+  become: true

@@ -1,0 +1,100 @@
+---
+## Users ##
+- name: Create SFTP group
+  group:
+    name: "{{ sshd_sftp_group_name }}"
+    state: present
+  when: sshd_sftp
+
+- name: Create SFTP users
+  user:
+    name: "{{ item.name }}"
+    groups: "{{ sshd_sftp_group_name }}"
+    append: "{{ item.append | default(False) }}"
+    home: "{{ sshd_sftp_home_partition }}/{{ item.name }}"
+    # `None` means default value -> default is to have a shell
+    shell: "{{ None if (item.shell | default(True)) else '/sbin/nologin' }}"
+    state: present
+  with_items: "{{ sshd_sftp_users }}"
+  when: sshd_sftp
+
+- name: Correct ownership and permission of home directories
+  file:
+    path: "{{ sshd_sftp_home_partition }}/{{ item.name }}"
+    owner: root
+    group: "{{ sshd_sftp_group_name }}"
+    mode: "0750"
+  with_items: "{{ sshd_sftp_users }}"
+  when: sshd_sftp
+
+- name: Install public keys
+  authorized_key:
+    user: "{{ item.0.name }}"
+    key: "{{ lookup('file', item.1) }}"
+  with_subelements:
+    - "{{ sshd_sftp_users }}"
+    - authorized
+    - flags:
+      skip_missing: True
+  when: sshd_sftp
+
+# Update user passwords, if they were specified.
+- name: Update user passwords
+  user:
+    name: "{{ item.name }}"
+    password: "{{ item.password }}"
+  with_items: "{{ sshd_sftp_users }}"
+  when: sshd_sftp_users and item.password is defined
+  
+## Folders ##
+# Create directories for all SFTP users. Optional, but recommended.
+- name: Create directories
+  file:
+    path: "{{ sshd_sftp_home_partition }}/{{ item[0].name }}/{{ item[1].name | default(item[1]) }}"
+    owner: "{{ item[0].name }}"
+    group: "{{ item[0].name }}"
+    mode: "{{ item[1].mode | default(0750) }}"
+    state: directory
+  with_nested:
+    - "{{ sshd_sftp_users }}"
+    - "{{ sshd_sftp_directories }}"
+  when: sshd_sftp
+
+# Create directories for individual SFTP users. Optional.
+- name: Create directories per user
+  file:
+    path: "{{ sshd_sftp_home_partition }}/{{ item[0].name }}/{{ item[1].name | default(item[1]) }}"
+    owner: "{{ item[0].name }}"
+    group: "{{ item[0].name }}"
+    mode: "{{ item[1].mode | default(0750) }}"
+    state: directory
+  with_subelements:
+    - "{{ sshd_sftp_users }}"
+    - "sshd_sftp_directories"
+    - flags:
+      skip_missing: True
+  when: sshd_sftp
+
+## Sshd config file ##
+- name: Alter SFTP subsystem entry
+  lineinfile:
+    dest: /etc/ssh/sshd_config
+    regexp: '^Subsystem(\s+)sftp'
+    line: "Subsystem sftp internal-sftp -f AUTH -l VERBOSE"
+    state: present
+  when: sshd_sftp
+  notify: Restart sshd
+
+- name: Add sshd_config block
+  blockinfile:
+    dest: /etc/ssh/sshd_config
+    marker: '# {mark} SFTP-Server block'
+    block: |
+      Match Group {{ sshd_sftp_group_name }}
+          ChrootDirectory {{ sshd_sftp_directory }}
+          AllowTCPForwarding no
+          X11Forwarding no
+          ForceCommand internal-sftp {{ sshd_sftp_enable_logging | ternary('-l VERBOSE', '') }} -u 0002
+          PasswordAuthentication {{ sshd_sftp_allow_passwords | ternary('yes', 'no') }}
+  when: sshd_sftp
+  notify: Restart sshd

@@ -1,0 +1,12 @@
+---
+## Sshd config file ##
+
+- name: Restrict ssh from certain ips for certain users
+  replace:
+    backup: yes
+    dest: /home/{{ item.name }}/.ssh/authorized_keys
+    regexp: '^(ssh-rsa.*)$'
+    replace: 'from="{{ item.ip }}" \1'
+  with_items: "{{sshd_restrict_ips.users}}"
+  when: sshd_restrict_ips is defined
+  

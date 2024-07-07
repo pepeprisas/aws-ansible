@@ -1,0 +1,80 @@
+#!/bin/bash        
+
+ROLES=(ttmarket consultants administrators special other)
+
+SCRIPTNAME=$(readlink -f ${BASH_SOURCE[0]})
+SCRIPTNAME=$(basename $SCRIPTNAME)
+
+if [ $# -lt 4 ]; then
+  echo -e "$SCRIPTNAME"
+  echo -e ""  
+  echo -e "A script to create user accounts and preconfigure some SSH stuff"
+  echo -e ""
+  echo -e "Syntax: "
+  echo -e "\t$SCRIPTNAME <username> <role> <full name>"
+  echo -e ""
+  echo -e "Where:"
+  echo -e "\t<username> is a user name created as namesurname"
+  echo -e "\t<role> is one of: ${ROLES[@]}"
+  echo -e "\t<full name> is the full name (name and surname(s)) for the user"
+  exit 1
+fi
+
+if [[ "${1}" =~ [^a-zA-Z] ]]; then
+  echo "[ERROR] Invalid username!"
+  exit 2
+fi 
+
+if id "${1}" >/dev/null 2>&1; then
+  echo "[ERROR] The user ${1} already exists!"
+  exit 3
+fi
+
+for ROLE in ${ROLES[*]}
+do
+  if [ "${2}" == "${ROLE}" ]; then
+    USERHOME="/home/${2}"
+    if [ ! -d ${USERHOME} ]; then
+      mkdir -p ${USERHOME}
+    fi 
+  fi
+done
+
+if [ "${USERHOME}" == "" ]; then
+  echo "[ERROR] Unknown role ${2} (run without arguments to get help)"
+  exit 4
+fi
+
+USERHOME=$USERHOME/$1                        
+COMMENT=${@:3}   
+
+echo "[INFO] Creating user..."
+useradd -m -d "${USERHOME}" --comment "${COMMENT}" -s /bin/bash ${1}
+if [ $? != 0 ]; then
+  echo "[ERROR] There was some error creating the user!"
+  exit 5
+fi
+  
+echo "[INFO] Creating ssh folder structure..."
+mkdir ${USERHOME}/.ssh
+chmod 700 ${USERHOME}/.ssh
+touch ${USERHOME}/.ssh/authorized_keys
+chmod 600 ${USERHOME}/.ssh/authorized_keys
+chown -R ${1}:${1} ${USERHOME}/.ssh
+
+if [ ${2} == "administrators" ]; then
+  if [ -f /etc/debian_version ]; then
+    echo "[INFO] Adding user to admin/sudo groups..."
+    usermod -a -G admin ${1}
+    usermod -a -G sudo ${1}
+  elif [ -f /etc/system-release -o -f /etc/redhat-release ]; then
+    echo "[INFO] Adding user to wheel group..."
+    usermod -a -G wheel ${1}
+  else
+    echo "[ERROR] Unknown GNU/Linux distribution! Could not grant sudo privileges to the user!"
+    exit 6
+  fi
+fi
+
+echo "[INFO] User created"
+exit 0

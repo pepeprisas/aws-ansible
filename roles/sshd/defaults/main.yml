@@ -1,0 +1,8 @@
+---
+sshd_sftp_home_partition: /home
+sshd_sftp_group_name: sftpusers
+sshd_sftp_directories: []
+sshd_sftp_allow_passwords: False
+sshd_sftp_enable_selinux_support: False
+sshd_sftp_enable_logging: False
+sshd_port: 22

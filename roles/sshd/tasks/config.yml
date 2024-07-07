@@ -1,0 +1,44 @@
+---
+## Sshd config file ##
+
+- name: sshd configuration file update
+  template: src=../../roles/sshd/templates/sshd_config.j2
+      dest=/etc/ssh/sshd_config
+      backup=yes
+      owner=0 group=0 mode=0600
+      validate='/usr/sbin/sshd -T -f %s'
+  notify: Restart sshd
+
+- name: Change port for ssh
+  replace:
+    dest: /etc/ssh/sshd_config
+    regexp: '^[#]Port .*'
+    replace: 'Port {{ sshd_port }}'
+    backup: yes
+  when: sshd_port is defined
+
+- name: Alter sshd only listen from private IP
+  replace:
+    dest: /etc/ssh/sshd_config
+    regexp: '^#ListenAddress 0.0.0.0'
+    replace: 'ListenAddress {{ ansible_default_ipv4["address"] }}'
+  when: sshd_securization
+  notify: Restart sshd
+  
+- name: Add sshd_config ciphers and keying block
+  replace:
+    dest: /etc/ssh/sshd_config
+    regexp: '# Ciphers and keying'
+    replace: |
+      Ciphers aes128-ctr,aes192-ctr,aes256-ctr,aes128-gcm@openssh.com,aes256-gcm@openssh.com,chacha20-poly1305@openssh.com
+      MACs hmac-sha1-etm@openssh.com,umac-64-etm@openssh.com,umac-128-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-ripemd160-etm@openssh.com,hmac-sha1,umac-64@openssh.com,umac-128@openssh.com,hmac-sha2-256,hmac-sha2-512,hmac-ripemd160,hmac-ripemd160@openssh.com
+  when: sshd_securization
+  notify: Restart sshd
+
+- name: Add sshd_config banner block
+  replace:
+    dest: /etc/ssh/sshd_config
+    regexp: '^#Banner none'
+    replace: Banner /etc/issue.net
+  notify: Restart sshd
+

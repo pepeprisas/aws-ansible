@@ -1,0 +1,6 @@
+---
+- name: Installing AIDE - Advanced Intrusion Detection Environment
+  yum:
+    name: aide
+    state: present
+    disable_gpg_check: yes

@@ -1,0 +1,14 @@
+---
+# handlers file for appserver
+
+- name: restart-appserver-frontend-service
+  docker:
+    name: appserver-frontend
+    image: "{{ docker_registry.frontend.image }}"
+    state: restarted
+
+- name: restart-appserver-backend-service
+  docker:
+    name: appserver-backend
+    image: "{{ docker_registry.backend.image }}"
+    state: restarted

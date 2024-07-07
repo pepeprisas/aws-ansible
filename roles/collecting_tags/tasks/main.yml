@@ -1,0 +1,52 @@
+---
+# tasks file for collecting_tags
+- name: Get ec2-metadata if distribution is centos
+  get_url:
+    url: http://s3.amazonaws.com/ec2metadata/ec2-metadata
+    dest: /opt/aws/bin/ec2-metadata
+    mode: 0755
+  when: ansible_distribution == 'CentOS'
+
+- name: get boto on CentOS
+  pip:
+    name: boto
+  when: ansible_distribution == 'CentOS'
+  
+- name: Getting instanceid 
+  shell: "{{ path_aws }}/ec2-metadata -i | cut -d ' ' -f 2"
+  register: ec2_id
+
+- name: Getting instance region
+  shell: "region=$(/opt/aws/bin/ec2-metadata | grep placement | cut -d ':' -f 2) && echo ${region::-1}"
+  register: region
+
+- name: Getting account_id
+  shell: aws ec2 describe-security-groups --group-names 'Default' --query 'SecurityGroups[0].OwnerId' --output text --region {{ region.stdout }}
+  register: account_id
+
+- name: Retrieve all tags on an instance
+  ec2_tag:
+    region: '{{ region.stdout }}'
+    resource: '{{ ec2_id.stdout }}'
+    state: list
+  register: ec2_tags
+
+- name: Getting ipaddress
+  shell: "/opt/aws/bin/ec2-metadata --local-ipv4 | cut -d ':' -f 2 | sed 's/ //'"
+  register: private_ip_address
+
+- name: Getting sns topic 
+  shell: "aws sns list-topics --region {{ region.stdout }} | grep -i {{ ec2_tags.tags['aws:cloudformation:stack-name'] }} | grep -i AlarmNotificationTopic | cut -d '\"' -f 4"
+  register: sns_topic
+  when: ec2_tags.tags['aws:cloudformation:stack-name'] is defined
+
+- name: Getting SG name
+  shell: "/opt/aws/bin/ec2-metadata | grep security-groups | cut -d ':' -f 2"
+  register: securityGroup
+
+- name: Get partition name for root device. (To get this info device_root_info.disk.dev)
+  parted: 
+    device: /dev/root
+    unit: MiB
+  register: device_root_info
+  when: ansible_distribution != 'CentOS' and ansible_distribution == 'Amazon' and ansible_distribution_version != '2'

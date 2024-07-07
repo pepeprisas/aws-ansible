@@ -1,0 +1,7 @@
+galaxy_info:
+  description: Install sftp based on https://github.com/johanmeiring/ansible-sftp
+  company: TID
+  license: license (GPLv2, CC-BY, etc)
+  min_ansible_version: 1.2
+  galaxy_tags: []
+dependencies: []

@@ -1,0 +1,31 @@
+---
+
+- name: Get current users and keys
+  uri:
+    url: http://{{ pulp_user_keys }}:{{ pulp_password_keys }}@pulp.example.com/getPublicKeys/{{ ec2_tags.tags.environment }}/
+    method: GET
+    force: yes
+    return_content: yes
+  register: json_response
+
+- name: User creation
+  user:
+    name: "{{item.username}}"
+    group: "{{item.group | default(item.username if users_create_per_user_group else users_group)}}"
+    # empty string removes user from all secondary groups
+    groups: "{{item.groups | join(',') if 'groups' in item else ''}}"
+    shell: "{{item.shell if item.shell is defined else users_default_shell}}"
+    password: "{{item.password if item.password is defined else '!'}}"
+    comment: "{{item.name if item.name is defined else ''}}"
+    uid: "{{item.uid | default(omit)}}"
+    home: "{{ '/home/'+ item.role + '/' + item.username  | default('/home/' + item.username) }}"
+    createhome: "{{'yes' if users_create_homedirs else 'no'}}"
+  with_items: "{{ json_response['content'] }}"
+  ignore_errors: true
+
+- name: Set authorized keys from repo
+  authorized_key:
+    user: "{{ item.username }}"
+    state: present
+    key: "{{ item.key }}"
+  with_items: "{{ json_response['content'] }}"

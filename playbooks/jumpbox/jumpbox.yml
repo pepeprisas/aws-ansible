@@ -1,0 +1,38 @@
+---
+# tasks file for jumpbox
+
+- hosts: ansible-jumpbox-localhost
+  become: yes
+  serial: 100%
+
+  roles:
+
+    - role: collecting_tags
+      tags: [always]
+
+    - role: yum_repos
+      tags: [yum_repos]
+
+    - role: key_repos
+      tags: [key_repos]
+
+    - role: cougar.ansible-role-users
+      tags: [users]
+
+    - role: securization
+      tags: [securization]
+
+    - role: sshd
+      tags: [sshd]
+
+    - role: logrotate
+      tags: [logrotate]
+
+    - role: nessus_agent
+      tags: [nessus_agent]
+
+    - role: jumpbox
+      tags: [jumpbox]
+
+    - role: yum-cron
+      tags: [yum-cron]

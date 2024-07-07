@@ -1,0 +1,86 @@
+---
+###################
+#  YUM_REPOS
+###################
+yum_overwrite_default_repos                 : false
+yum_repos_auto_update                       : true
+yum_repos:
+  - name                                    : elastic
+    description                             : Repository to download filebeat agent
+    file                                    : elastic
+    url                                     : https://{{ pulp_user_amzn }}:{{ pulp_password_amzn }}@pulp.example.com/pulp/repos/elastic-beats/
+    enabled                                 : yes
+  - name                                    : nessus
+    description                             : Repository to download Nessus agent
+    file                                    : tenable-nessus
+    url                                     : https://{{ pulp_user_amzn }}:{{ pulp_password_amzn }}@pulp.example.com/pulp/repos/tenable/nessus/amazon-linux
+    enabled                                 : yes
+
+#######
+# AWS #
+#######
+path_aws              : /opt/aws/bin
+
+###################################
+#  COUGAR.ANSIBLE-ROLE-USERS
+###################################
+users_create_per_user_group: false
+users_create_homedirs: true
+users_authorize_group_sudo                   : wheel
+
+#FOR USERS THAT THIS MODULE CREATES, PLEASE CHECK ACCORDING FILE USERS.YML.
+
+
+############
+# Filebeat #
+############
+filebeat_crt_pulp_path                        : 'https://pulp.example.com/filebeat/filebeat.crt'
+filebeat_key_pulp_path                        : 'https://pulp.example.com/filebeat/filebeat.key'
+filebeat_paths:
+  - /var/log/secure
+  - /var/log/dmesg
+  - /var/log/messages
+  - /var/log/cron
+  - /var/log/yum.log
+  - /var/log/Audit.log
+filebeat_paths_application:
+  - /var/log/query_daemon/query_daemon.log
+filebeat_logType                              : jumpbox
+filebeat_paths_document_type                  : log
+filebeat_paths_json                           : log
+filebeat_outputs:
+    elastic:
+      id                                       : "{{ filebeat_cloud_id }}"
+      auth                                     : "{{ filebeat_cloud_auth }}"
+
+
+##########
+# Nessus #
+##########
+nessus_yum_path   : pulp/repos/tenable/nessus
+nessus_props_path : windowsserver/nessus.properties
+nessus_props_file : /tmp/nessus.properties
+agents_file       : /tmp/nessus-agents.json
+token_file        : /tmp/nessusapi-token.json
+token_json        : "{{ lookup('file', '{{ token_file }}') | from_json }}"
+agents_json       : "{{ lookup('file', '{{ agents_file }}') | from_json }}"
+nessus_url        : https://34.251.81.134:8834
+pulp_hostname     : pulp.example.com
+
+###########
+#  SSHD   #
+###########
+sshd_restrict_ips:
+  users:
+    - name                                  : ec2-user
+      ip                                    : "195.235.92.*,195.235.93.*,18.202.169.189,54.76.173.196,52.17.30.216"
+sshd_port                                   : 22
+sshd_securization                           : True
+sshd_sftp                                   : False
+sshd_sftp_users:
+  - name                                    : foo
+
+##############
+#  yum-cron  #
+##############
+yum_cron_hoursrange : 11-12

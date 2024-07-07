@@ -1,0 +1,5 @@
+---
+# tasks file for factorization
+
+- import_tasks: config.yml
+- import_tasks: service.yml

@@ -1,0 +1,4 @@
+---
+# tasks file for yum_repos
+
+- import_tasks: config.yml

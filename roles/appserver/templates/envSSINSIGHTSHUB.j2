@@ -1,0 +1,3 @@
+{% for varname in appserver_vars %}
+{% if doExport|default(False) %}export {% endif %}{{ varname }}={{ appserver_vars[varname] }}
+{% endfor %}

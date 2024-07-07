@@ -1,0 +1,4 @@
+---
+# defaults file for yum_repos
+yum_overwrite_default_repos              : true
+yum_repos_auto_update                    : false

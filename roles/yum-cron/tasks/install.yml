@@ -1,0 +1,8 @@
+---
+# tasks to install yum-cron
+
+- name: Installing yum-cron
+  yum: 
+    name: yum-cron 
+    state: latest
+    disable_gpg_check: yes

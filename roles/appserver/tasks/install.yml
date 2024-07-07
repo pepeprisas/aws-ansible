@@ -1,0 +1,23 @@
+---
+# tasks file for appserver
+
+- name: Install mysql to make backups
+  yum:
+    name: mysql
+
+- name: Installing package for docker community
+  yum: 
+    name: "{{ item }}"
+  with_items:
+    - yum-utils
+    - device-mapper-persistent-data
+    - lvm2
+    - docker
+
+- name: Installing docker-py
+  pip:
+    name: "{{ item }}"
+  with_items:
+    - docker
+    - docker-compose==1.11.0
+

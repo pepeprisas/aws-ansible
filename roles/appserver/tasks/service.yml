@@ -1,0 +1,77 @@
+---
+# service file for appserver
+
+- name: Installing Docker Config to avoid overlapping of production network
+  template:
+    src:  daemon.json
+    dest: /etc/docker/daemon.json
+    owner: root
+    group: root
+    mode: 0644
+
+- name: Start docker service
+  service:
+    name: "docker"
+    state: restarted
+
+- name: "get docker info"
+  shell: docker info
+  register: docker_info
+
+- name: Creating appservernetwork
+  docker_network:
+    name: appserver_network
+    ipam_options:
+      subnet: 192.168.2.0/24
+      gateway: 192.168.2.1
+      iprange: 192.168.2.0/26
+  register: network_docker
+
+- name: Stopping autoheal for possible upgrade
+  docker_service:
+    project_name: autoheal
+    state: absent
+    definition:
+      version: '2.1'
+      services:
+
+        autoheal:
+          image: "{{ docker_registry.autoheal.image }}"
+          volumes:
+            - "/var/run/docker.sock:/var/run/docker.sock"
+          environment:
+            AUTOHEAL_CONTAINER_LABEL: all
+          restart: always
+  when: enable_autoheal
+
+#Log into AWS registry
+- name: Log into registry
+  shell: "aws ecr get-login --no-include-email --region {{ region.stdout }}"
+  register: awsRegistrylogin
+  when: docker_registry.registry_aws
+
+- name: Logging docker with aws registry
+  shell: "{{ awsRegistrylogin.stdout }}"
+  when: docker_registry.registry_aws
+
+- docker_service:
+    project_src: "{{ appserver_config_path }}/compose/{{ item }}"
+  with_items:
+    - appserver
+
+- name: Starting again autoheal for all containers
+  docker_service:
+    project_name: autoheal
+    state: present
+    definition:
+      version: '2.1'
+      services:
+
+        autoheal:
+          image: "{{ docker_registry.autoheal.image }}"
+          volumes:
+            - "/var/run/docker.sock:/var/run/docker.sock"
+          environment:
+            AUTOHEAL_CONTAINER_LABEL: all
+          restart: always
+  when: enable_autoheal

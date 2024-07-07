@@ -1,0 +1,71 @@
+---
+- name: Removing repo files
+  file:
+    path: "{{ item }}"
+    state: absent
+  with_fileglob:
+    - "/etc/yum.repos.d/*"
+  when: yum_overwrite_default_repos == true
+  notify: yum-clean-metadata
+#adding our keys
+
+- rpm_key:
+    state: present
+    key: "{{ item.key }}"
+  with_items: "{{ yum_repos_keys }}"
+  when: yum_repos_keys is defined
+
+#Adding our own repos
+- name: Get Amazon Current Repos for the environment
+  uri:
+    url: http://{{ pulp_user_amzn }}:{{ pulp_password_amzn }}@pulp.example.com/getCurrentRepos/{{ ec2_tags.tags.platform }}/{{ ec2_tags.tags.stage }}/{{ region.stdout }}
+    method: GET
+    force: yes
+    return_content: yes
+  when: yum_overwrite_default_repos == true
+  register: json_repos
+
+- name: Add amz repositories
+  yum_repository:
+    name: amazon-{{ item.release }}-{{ item.type | regex_replace('/', '-') }}-x86_64
+    description: amazon-{{ item.release }}-{{ item.type | regex_replace('/', '-') }}-x86_64
+    file: amzn-{{ item.release }}-{{ item.type | regex_replace('/', '-') }}
+    baseurl: "{{ item.repo_url }}"
+    enabled: yes
+  with_items: "{{ json_repos['content'] }}"
+  when: yum_overwrite_default_repos == true
+  notify: 
+    - yum-clean-metadata 
+    - yum-update
+
+#Adding Special Repos
+- name: Add specific repositories
+  yum_repository:
+    name: "{{ item.name }}"
+    description: "{{ item.description }}"
+    file: "{{ item.file }}"
+    baseurl: " {{ item.url }} "
+    enabled: yes
+    gpgcheck: "{{ item.gpgcheck |default('no')}}"
+    gpgkey: "{{ item.gpgkey |default(omit)}}"
+  with_items: "{{ yum_repos }}"
+  notify: yum-clean-metadata
+
+- meta: flush_handlers
+
+- name : install yum-cron
+  yum  :
+    name  : yum-cron
+    state : latest
+  when : yum_repos_auto_update == true
+
+- name: Configure yum-cron.conf
+  template: src=yum-cron.conf.j2 dest=/etc/yum/yum-cron.conf
+  notify: restart yum-cron 
+  when: yum_repos_auto_update == true
+
+- name: Ensures yum-cron service is running
+  service: name=yum-cron state=started enabled=yes
+  when: yum_repos_auto_update == true
+
+

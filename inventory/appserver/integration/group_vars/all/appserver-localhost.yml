@@ -1,0 +1,100 @@
+---
+
+stage                                     : ci
+stage_repo                                : ci
+
+###################
+#  YUM_REPOS
+###################
+yum_overwrite_default_repos               : true
+yum_repos_auto_update                     : false
+yum_repos:
+  - name                                  : nessus
+    description                           : Repository to download Nessus agent
+    file                                  : tenable-nessus
+    url                                   : https://{{ pulp_user_amzn }}:{{ pulp_password_amzn }}@pulp.example.com/pulp/repos/tenable/nessus/amazon-linux
+    enabled                               : yes
+
+###################################
+#  COUGAR.ANSIBLE-ROLE-USERS
+###################################
+users_create_per_user_group               : false
+users_create_homedirs                     : true
+users_group                               : docker
+
+groups_to_create:
+  - name                                  : docker
+    gid                                   : 501
+
+#USERS var has been moved to users.yaml file
+
+########
+#  API #
+########
+dnszone                                   : "appserver.example.com"
+
+###################
+#  APPSERVER
+###################
+appserver_vars:
+  DJANGO_SECRET_KEY                       : "{{ lookup('password', '/dev/null length=40 chars=ascii_letters') }}"
+  API_URL                                 : "http://backoffice-int.{{ dnszone }}:9800"
+
+appserver_custom_deploy_path              : "{{ install_dir|default('') }}"
+appserver_config_path                     : "{{ appserver_custom_deploy_path }}/opt/appserver/conf"
+appserver_logs_path                       : "{{ appserver_custom_deploy_path }}/var/log"
+
+appserver_data:
+  path                                    : /data/appserver/db
+  user                                    : appserver
+  group                                   : docker
+appserver_local_destination               : /data/backups
+appserver_mariadb_backups:
+  - name                                  : "Creating daily backups for mariadb"
+    job                                   : "{{ appserver_path }}/mariadb_backup.sh -u {{ appserver_mariadb.user_backups }} -p '{{ appserver_mariadb.root_password }}' -d {{ appserver_local_destination }} -s {{ s3_backups }} >> {{appserver_mariadb_backups_log_path}}/mariadb_backup.log"
+    minute                                : 0
+    hour                                  : 16
+    cron_file                             : appserver_backups
+    user                                  : root
+    file                                  : appserver_backups
+appserver_mariadb_backups_log_path        : "/var/log/mariadb_backup"
+
+docker_registry:
+  frontend:                                       
+    image                                 : 123456789012.dkr.ecr.eu-west-1.amazonaws.com/appserver-frontend/ci:{{ appserver_version }}
+  backend:                                       
+    image                                 : 123456789012.dkr.ecr.eu-west-1.amazonaws.com/appserver-backend/ci:{{ appserver_version }}
+  autoheal:
+    image                                 : 123456789012.dkr.ecr.eu-west-1.amazonaws.com/autoheal:appserver-{{ appserver_version }}
+  registry_aws                            : True
+enable_autoheal                           : True
+
+#######
+# AWS #
+#######
+path_aws                                  : /opt/aws/bin
+
+########
+# Pulp #
+########
+pulp_hostname                             : pulp.example.com
+
+###########
+#  SSHD   #
+###########
+sshd_port                                 : 22
+sshd_securization                         : True
+sshd_sftp                                 : False
+sshd_sftp_users:
+  - name                                  : foo
+
+##########
+# Nessus #
+##########
+nessus_yum_path                           : pulp/repos/tenable/nessus
+nessus_props_path                         : windowsserver/nessus.properties
+nessus_props_file                         : /tmp/nessus.properties
+agents_file                               : /tmp/nessus-agents.json
+token_file                                : /tmp/nessusapi-token.json
+token_json                                : "{{ lookup('file', '{{ token_file }}') | from_json }}"
+agents_json                               : "{{ lookup('file', '{{ agents_file }}') | from_json }}"

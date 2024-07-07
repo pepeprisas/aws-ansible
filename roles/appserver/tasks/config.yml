@@ -1,0 +1,55 @@
+---
+# config file for appserver
+
+  - name: Adding ec2-user to group
+    user: 
+      name: ec2-user 
+      groups: "{{ appserver_data.group }}" 
+      append: yes
+      
+  - name: Creating folders
+    file:
+      path: "{{ item }}"
+      state: directory
+      owner: "{{ appserver_data.user }}"
+      group: "{{ appserver_data.group }}"
+      mode: 0775
+    with_items:
+      - "{{ appserver_config_path }}"
+      - "{{ appserver_config_path }}/appserver"
+      - "{{ appserver_config_path }}/compose/appserver"
+      - "{{ appserver_data.path }}"
+      - "{{ appserver_mariadb_backups_log_path }}"
+
+  - name: Copying appserver backend env file
+    template:
+      src: "{{ item[1] }}.j2"
+      dest: "{{ appserver_config_path }}/{{ item[0] }}/{{ item[1] }}"
+      owner: "{{ appserver_data.user }}"
+      mode: 0644
+    with_together:
+      - [ 'appserver' ]
+      - [ 'envAPPSERVER' ]
+
+  - name: Copying api link frontend conf file
+    vars:
+      apiURL: "{{ frontend.backend.url }}"
+      apiPATH: "{{ frontend.backend.base }}"
+      apiTOKEN: "{{ frontend.backend.token|default('') }}"
+    template:
+      src: "{{ item[0] }}.j2"
+      dest: "{{ appserver_config_path }}/config.json"
+      owner: "{{ appserver_data.user }}"
+      mode: 0644
+    with_together:
+      - [ 'config.json' ]
+
+  - name: Copying docker-compose 
+    template:
+      src: "{{ item[0] }}.j2"
+      dest: "{{ appserver_config_path }}/compose/{{ item[1] }}/docker-compose.yml"
+      owner: "{{ appserver_data.user }}"
+      mode: 0644
+    with_together:
+      - [ 'docker-compose.yml' ]
+      - [ 'appserver' ]

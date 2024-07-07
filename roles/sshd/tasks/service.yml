@@ -1,0 +1,6 @@
+---
+- name: start service OpenSSH
+  service:
+    name: sshd
+    state: started
+    enabled: yes

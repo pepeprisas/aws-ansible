@@ -1,0 +1,13 @@
+---
+# tasks to config yum-cron service
+- name: Set yum-cron.conf to auto-apply updates
+  lineinfile:
+    dest: /etc/yum/yum-cron.conf
+    regexp: '^apply_updates = '
+    line: 'apply_updates = yes'
+
+- name: Set hours range in anacrontab
+  lineinfile:
+    dest: /etc/anacrontab
+    regexp: '^START_HOURS_RANGE='
+    line: 'START_HOURS_RANGE={{ yum_cron_hoursrange }}'

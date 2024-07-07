@@ -1,0 +1,10 @@
+---
+
+- name: Add script to create users
+  copy: >
+    src=create-jump-user
+    dest=/usr/local/sbin/create-jump-user
+    owner=root 
+    group=root
+    mode=0755
+

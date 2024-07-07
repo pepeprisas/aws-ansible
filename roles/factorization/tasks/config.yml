@@ -1,0 +1,21 @@
+---
+# tasks file for factorization
+- name: "Create custom fact directory"
+  file:
+    path: "/etc/ansible/facts.d"
+    state: "directory"
+    mode: 0755
+
+- file:
+    path: /etc/ansible
+    owner: root
+    group: root
+    mode: 0755
+
+- name: Copying script
+  copy:
+    src: parse.sh
+    dest: "/opt/parse.sh"
+    mode: 0755
+
+

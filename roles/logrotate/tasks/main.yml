@@ -1,0 +1,11 @@
+---
+# tasks file for logrotate
+
+- name: Copying logrotate.conf file
+  copy:
+    src: "{{ item }}"
+    dest: "/etc/{{ item }}"
+    owner: root
+    mode: 0644
+  with_items:
+    - logrotate.conf

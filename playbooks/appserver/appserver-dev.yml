@@ -1,0 +1,32 @@
+---
+# appserver
+
+- hosts: appserver-server-localhost
+  become: yes
+  gather_facts: true
+  serial: 100%
+
+  environment:
+    DOCKER_HOST: "{{ lookup('env', 'DOCKER_HOST') | default('unix:///var/run/docker.sock') }}"
+    DOCKER_CLIENT_TIMEOUT: 150
+    COMPOSE_HTTP_TIMEOUT: 150
+
+  roles:
+
+    - role: collecting_tags
+      tags: [always]
+
+    - role: yum_repos
+      tags: [yum_repos]
+
+    - role: cougar.ansible-role-users
+      tags: [mount_volume,appserver]
+
+    - role: sshd
+      tags: [sshd]   
+
+    - role: securization
+      tags: [securization]
+
+    - role: appserver
+      tags: [appserver]

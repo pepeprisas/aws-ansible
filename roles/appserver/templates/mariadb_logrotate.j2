@@ -1,0 +1,29 @@
+{{ appserver_local_destination }}/daily-*.sql.bz {
+    daily
+    rotate 8
+    compress
+    ifempty
+    missingok
+    sharedscripts
+    nocreate
+    dateext
+}
+
+{{ appserver_local_destination }}/weekly-*.sql.bz {
+        weekly
+        rotate 4
+        compress
+        ifempty
+        missingok
+        nocreate
+        dateext
+}
+
+{{ appserver_local_destination }}/monthly-*.sql.bz {
+        monthly
+        rotate 12
+        compress
+        ifempty
+        missingok
+        dateext
+}

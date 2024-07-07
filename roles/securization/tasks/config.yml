@@ -1,0 +1,561 @@
+---
+- name: Changing file ownership, group and permissions to grub
+  file:
+    path: /boot/grub/menu.lst
+    owner: root
+    group: root
+    mode: og-rwx
+  when: ansible_distribution == 'Amazon'
+
+- name: Changing file ownership, group and permissions to grub (CentOS/Red Hat)
+  file:
+    src: /boot/grub/grub.conf
+    dest: /boot/grub/menu.lst
+    owner: root
+    group: root
+    mode: og-rwx
+  when: ansible_distribution == 'CentOS' or
+        ansible_distribution == 'RedHat'
+
+- name: Changing file ownership, group and permissions to shadow-
+  file:
+    path:  /etc/shadow-
+    owner: root
+    group: root
+    mode: 0000
+
+- name: Changing file ownership, group and permissions to gshadow-
+  file:
+    path:  /etc/gshadow-
+    owner: root
+    group: root
+    mode: 0000
+
+- name: Ensuring limits are ok
+  lineinfile:
+    path: /etc/security/limits.conf
+    line: '* hard core 0'
+
+- name: Login on single user
+  lineinfile:
+    path: /etc/sysconfig/init
+    regexp: '^SINGLE=/sbin/sushell$'
+    line: 'SINGLE=/sbin/sulogin'
+
+- name: No prompt interactive mode
+  lineinfile:
+    path: /etc/sysconfig/init
+    regexp: '^PROMPT=yes$'
+    line: 'PROMPT=no'
+
+- name: shm permissions on fstab
+  lineinfile:
+    path: /etc/fstab
+    regexp: '^tmpfs       /dev/shm'
+    line: 'tmpfs       /dev/shm    tmpfs   noexec,nodev,nosuid       0   0'
+  when: ansible_distribution != 'RedHat'
+
+- name: Password auth
+  lineinfile:
+    path: /etc/pam.d/password-auth
+    regexp: '^password    sufficient    pam_unix.so'
+    line: 'password    sufficient    pam_unix.so remember=5 sha512 shadow nullok try_first_pass use_authtok '
+
+- name: System auth
+  lineinfile:
+    path: /etc/pam.d/system-auth
+    regexp: '^password    sufficient    pam_unix.so'
+    line: 'password    sufficient    pam_unix.so remember=5 sha512 shadow nullok try_first_pass use_authtok '
+
+- name: Password auth history
+  lineinfile:
+    path: /etc/pam.d/password-auth
+    line: 'password    required      pam_pwhistory.so'
+
+- name: Auth faillock 1
+  lineinfile:
+    path: /etc/pam.d/password-auth
+    line: 'auth [default=die] pam_faillock.so authfail audit deny=5 unlock_time=900'
+
+- name: Auth faillock 2
+  lineinfile:
+    path: /etc/pam.d/password-auth
+    line: 'auth [success=1 default=bad] pam_unix.so'
+
+- name: Auth faillock 3
+  lineinfile:
+    path: /etc/pam.d/password-auth
+    line: 'auth required pam_faillock.so preauth audit silent deny=5 unlock_time=900'
+
+- name: Auth faillock 4
+  lineinfile:
+    path: /etc/pam.d/password-auth
+    line: 'auth sufficient pam_faillock.so authsucc audit deny=5 unlock_time=900'
+
+- name: passwd auth history
+  lineinfile:
+    path: /etc/pam.d/password-auth
+    line: 'password    required      pam_pwhistory.so remember=5'
+
+- name: passwd auth history 2
+  lineinfile:
+    path: /etc/pam.d/password-auth
+    line: 'password requisite pam_pwquality.so try_first_pass retry=3'
+
+- name: System auth faillock 1
+  lineinfile:
+    path: /etc/pam.d/system-auth
+    line: 'password    required      pam_pwhistory.so remember=5'
+
+- name: System auth faillock 2
+  lineinfile:
+    path: /etc/pam.d/system-auth
+    line: 'auth [default=die] pam_faillock.so authfail audit deny=5 unlock_time=900'
+
+- name: System auth faillock 3
+  lineinfile:
+    path: /etc/pam.d/system-auth
+    line: 'auth [success=1 default=bad] pam_unix.so'
+
+- name: System auth faillock 4
+  lineinfile:
+    path: /etc/pam.d/system-auth
+    line: 'auth required pam_faillock.so preauth audit silent deny=5 unlock_time=900'
+
+- name: System auth faillock 5
+  lineinfile:
+    path: /etc/pam.d/system-auth
+    line: 'auth sufficient pam_faillock.so authsucc audit deny=5 unlock_time=900'
+
+- name: System auth faillock 6
+  lineinfile:
+    path: /etc/pam.d/system-auth
+    line: 'password requisite pam_pwquality.so try_first_pass retry=3'
+
+- name: Ensuring Telnet is removed.
+  package: "name=telnet state=absent"
+
+- name: Copying Issue file
+  copy: >
+    src=issue
+    dest=/etc/issue
+    owner=root 
+    group=root
+    mode=0644
+  notify: restart-sshd
+  when: ansible_distribution != 'RedHat'
+
+- name: Copying Issue.net file
+  copy: >
+    src=issue
+    dest=/etc/issue.net
+    owner=root 
+    group=root
+    mode=0644
+  when: ansible_distribution != 'RedHat'
+
+- name: Block uncommon FS and uncommon protocols
+  copy:
+    content: |
+        install cramfs /bin/true
+        install hfs /bin/true
+        install hfsplus /bin/true
+        install squashfs /bin/true
+        install freevxfs /bin/true
+        install jffs2 /bin/true
+        install udf /bin/true
+        install vfat /bin/true
+        install dccp /bin/true
+        install sctp /bin/true
+        install rds /bin/true
+        install tipc /bin/true
+    dest: "/etc/modprobe.d/CIS.conf"
+    owner: root
+    group: root
+    mode: 0644
+
+- name: Copying cron.allow
+  copy: >
+    content="root\n"
+    dest=/etc/cron.allow
+    owner=root 
+    group=root
+    mode=0600
+
+- name: Copying at.allow
+  copy: >
+    content=""
+    dest=/etc/at.allow
+    owner=root 
+    group=root
+    mode=0600
+
+- name: Deleting cron.deny
+  file:
+    path: /etc/cron.deny
+    state: absent
+
+- name: Deleting at.deny
+  file:
+    path: /etc/at.deny
+    state: absent
+
+- name: Ensuring right permissions on all logfiles
+  command: find /var/log -type f -exec chmod g-wx,o-rwx {} +
+  register: chmod_result
+  changed_when: "chmod_result.stdout != \"\""
+
+- name: crontab default file permissions
+  file:
+    path: /etc/crontab
+    owner: root
+    group: root
+    mode: og-rwx
+
+- name: cron.hourly default file permissions
+  file:
+    path: /etc/cron.hourly
+    owner: root
+    group: root
+    mode: og-rwx
+
+- name: cron.daily default file permissions
+  file:
+    path: /etc/cron.daily
+    owner: root
+    group: root
+    mode: og-rwx
+
+- name: cron.weekly default file permissions
+  file:
+    path: /etc/cron.weekly
+    owner: root
+    group: root
+    mode: og-rwx
+
+- name: cron.monthly default file permissions
+  file:
+    path: /etc/cron.monthly
+    owner: root
+    group: root
+    mode: og-rwx
+
+- name: cron.d default file permissions
+  file:
+    path: /etc/cron.d
+    owner: root
+    group: root
+    mode: og-rwx
+
+- name: Ensuring default user umask
+  lineinfile:
+    path: /etc/profile.d/aws-apitools-common.sh
+    create: yes
+    line: 'umask 022'
+
+- name: Ensuring rsyslog default file permissions
+  lineinfile:
+    path: /etc/rsyslog.conf
+    line: '$FileCreateMode 0640'
+
+- name: Ensuring rsyslog default file permissions
+  lineinfile:
+    path: /etc/rsyslog.d/21-cloudinit.conf
+    line: '$FileCreateMode 0640'
+
+- name: Ensuring access to the su command is restricted
+  lineinfile:
+    path: /etc/pam.d/su
+    regexp: '^#auth\s+required\s+pam_wheel.so\s+use_uid'
+    line: 'auth           required           pam_wheel.so use_uid'
+  when: ansible_distribution != 'CentOS'
+
+- name: Ensuring permissions on grub.conf
+  file:
+    src: /etc/grub.conf
+    dest: /boot/grub/menu.lst
+    owner: root
+    group: root
+    mode: 0600
+
+- name: Ensure filesystem integrity is regularly checked
+  cron:
+    name: check dirs
+    minute: 0
+    hour: 5
+    job: /usr/sbin/aide --check
+
+- sysctl: >
+    name="net.ipv4.conf.all.accept_redirects" 
+    value=0 sysctl_set=yes 
+    state=present 
+    reload=yes
+
+- sysctl: >
+    name="net.ipv4.conf.default.accept_redirects" 
+    value=0 sysctl_set=yes 
+    state=present 
+    reload=yes
+
+- sysctl: >
+    name="net.ipv4.conf.all.send_redirects" 
+    value=0 
+    sysctl_set=yes 
+    state=present 
+    reload=yes
+
+- sysctl: >
+    name="net.ipv4.conf.default.send_redirects" 
+    value=0 
+    sysctl_set=yes 
+    state=present 
+    reload=yes
+
+- sysctl: >
+    name="net.ipv4.conf.all.accept_source_route" 
+    value=0 
+    sysctl_set=yes 
+    state=present 
+    reload=yes
+
+- sysctl: >
+    name="net.ipv4.conf.all.rp_filter" 
+    value=1 
+    sysctl_set=yes 
+    state=present 
+    reload=yes
+
+- sysctl: >
+    name="net.ipv4.conf.default.rp_filter" 
+    value=1 
+    sysctl_set=yes 
+    state=present 
+    reload=yes
+
+- sysctl: >
+    name="net.ipv4.tcp_max_syn_backlog" 
+    value=4096 
+    sysctl_set=yes 
+    state=present 
+    reload=yes
+
+- sysctl: >
+    name="net.ipv4.conf.all.secure_redirects" 
+    value=0 sysctl_set=yes 
+    state=present 
+    reload=yes
+
+- sysctl: >
+    name="net.ipv4.conf.default.secure_redirects" 
+    value=0 sysctl_set=yes 
+    state=present 
+    reload=yes
+
+- sysctl: >
+    name="net.ipv4.conf.all.log_martians" 
+    value=1 
+    sysctl_set=yes 
+    state=present 
+    reload=yes
+
+- sysctl: >
+    name="net.ipv4.conf.default.log_martians" 
+    value=1
+    sysctl_set=yes 
+    state=present 
+    reload=yes
+
+- sysctl: >
+    name="net.ipv6.conf.all.accept_ra" 
+    value=0 
+    sysctl_set=yes 
+    state=present 
+    reload=yes
+
+- sysctl: >
+    name="net.ipv6.conf.default.accept_ra" 
+    value=0 sysctl_set=yes 
+    state=present 
+    reload=yes
+
+- sysctl: >
+    name="net.ipv6.conf.all.accept_redirects" 
+    value=0 sysctl_set=yes 
+    state=present 
+    reload=yes
+
+- sysctl: >
+    name="net.ipv4.icmp_echo_ignore_broadcasts" 
+    value=1 
+    sysctl_set=yes 
+    state=present 
+    reload=yes
+
+- sysctl: >
+    name="net.ipv6.conf.default.accept_redirects" 
+    value=0
+    sysctl_set=yes 
+    state=present 
+    reload=yes
+
+- sysctl: >
+    name="net.ipv4.icmp_ignore_bogus_error_responses" 
+    value=1
+    sysctl_set=yes 
+    state=present 
+    reload=yes
+
+- sysctl: >
+    name="fs.suid_dumpable" 
+    value=0
+    sysctl_set=yes 
+    state=present 
+    reload=yes
+
+- sysctl: >
+    name="kernel.randomize_va_space"
+    value=2
+    sysctl_set=yes 
+    state=present 
+    reload=yes
+
+- name: pwquality configuration file update
+  template: src=../../roles/securization/templates/pwquality.j2
+    dest=/etc/security/pwquality.conf
+    backup=yes
+    owner=0 group=0 mode=0644
+  when: ansible_distribution != 'RedHat'
+
+- stat:
+    path: /var/lib/aide/aide.db.gz
+  register: aidedb
+
+- name: Initializing aide
+  command: aide --init
+  when: aidedb.stat.exists == False
+
+- name: Copying aide db
+  command: mv /var/lib/aide/aide.db.new.gz /var/lib/aide/aide.db.gz
+  when: aidedb.stat.exists == False
+
+- name: Ensuring ntp is configured restrict -4 -6
+  blockinfile:
+    path: /etc/ntp.conf
+    insertafter: '^restrict'
+    block: |
+      restrict -4 default kod nomodify notrap nopeer noquery
+      restrict -6 default kod nomodify notrap nopeer noquery
+  when: ansible_distribution != 'CentOS'
+
+- name: adding existing user root to group wheel
+  user:
+    name: root
+    groups: wheel
+    append: yes
+
+- name: Modify logfiles group permissions in /var/log/
+  cron:
+    name: Fix log files permissions
+    job: find /var/log -type f -exec chmod g-wx,o-rwx {} +
+    hour: "2"
+    minute: "*"
+    cron_file: log_permission_fix
+    user: root
+    state: present
+
+- name: Get world writable files
+  shell: df --local -P | awk {'if (NR!=1) print $6'} | xargs -I '{}' find '{}' -xdev -type f -perm -0002
+  register: world_writable_files
+  when: ansible_distribution != 'CentOS'
+
+- name: Remove world writable files permissions
+  file:
+    path: "{{ item }}"
+    mode: o-w
+  with_items: "{{ world_writable_files.stdout_lines }}"
+  when: ansible_distribution != 'CentOS'
+
+- name: Ensuring sticky bit is set on all world-writable directories
+  shell: df --local -P | awk {'if (NR!=1) print $6'} | xargs -I '{}' find '{}' -xdev -type d -perm -0002 2>/dev/null | xargs chmod a+t
+  become: true
+  when: ansible_distribution == 'CentOS'
+
+- name: Ensuring permissions on grub.cfg (centos)
+  file:
+    dest: /boot/grub2/grub.cfg
+    owner: root
+    group: root
+    mode: 0600
+  when: ansible_distribution == 'CentOS'
+
+- name: Ensuring chrony is configured - OPTIONS
+  replace:
+    path: /etc/sysconfig/chronyd
+    regexp: '^OPTIONS=""'
+    replace: "OPTIONS='-u chrony'"
+  when: ansible_distribution == 'CentOS'
+
+- sysctl: >
+    name="net.ipv4.ip_forward"
+    value=0 sysctl_set=yes 
+    state=present 
+    reload=yes
+  when: ansible_distribution == 'CentOS'
+
+- sysctl: >
+    name="net.ipv4.conf.default.accept_source_route"
+    value=0 sysctl_set=yes 
+    state=present 
+    reload=yes
+  when: ansible_distribution == 'CentOS'
+
+- sysctl: >
+    name="net.ipv4.tcp_syncookies"
+    value=1 sysctl_set=yes 
+    state=present 
+    reload=yes
+  when: ansible_distribution == 'CentOS'
+
+- sysctl: >
+    name="net.ipv4.route.flush"
+    value=1 sysctl_set=yes 
+    state=present 
+    reload=yes
+  when: ansible_distribution == 'CentOS'
+
+- name: Ensure users' dot files are not group or world writable
+  cron:
+    name: dot files not group or world writable
+    job: find /home/ -maxdepth 2 -type f -name ".*" -exec chmod g-w,o-w {} +
+    hour: "2"
+    minute: "*"
+    cron_file: dot_files_permissions
+    user: root
+    state: present
+  when: ansible_distribution == 'CentOS'
+
+- name: Daily remove world writable permissions (CentOS)
+  cron:
+    name: Remove world writable permissions
+    job: df --local -P | awk {'if (NR!=1) print $6'} | xargs -I '{}' find '{}' -xdev -type f -perm -0002 2>/dev/null | xargs chmod o-w
+    hour: "3"
+    minute: "*"
+    user: root
+    state: present
+  when: ansible_distribution == 'CentOS'
+
+- name: Ensure prelink is disabled
+  command: prelink -ua
+  when: ansible_distribution == 'RedHat'
+
+- name: prelink uninstall
+  yum:
+    name: prelink
+    state: absent
+  when: ansible_distribution == 'RedHat'
+
+- name: ypbind uninstall
+  yum:
+    name: ypbind
+    state: absent
+  when: ansible_distribution == 'RedHat'

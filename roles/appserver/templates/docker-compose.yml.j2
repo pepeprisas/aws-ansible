@@ -1,0 +1,38 @@
+version: '3.0'
+services:
+
+  backend:
+    image: "{{ docker_registry.backend.image }}"
+    hostname: backend
+    env_file:
+        - "{{ appserver_config_path }}/appserver/envAPPSERVER"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "localhost:8000/health/"]
+      interval: 1m30s
+      timeout: 10s
+      retries: 3
+    expose:
+      - 8000
+    ports:
+      - "8000:8000"
+    restart: always
+
+  frontend:
+    image: "{{ docker_registry.frontend.image }}"
+    hostname: frontend
+    depends_on:
+      - backend
+    external_links:
+      - backend:8000
+    expose:
+      - 8001
+    ports:
+      - "8001:80"
+    restart: always
+    volumes:
+      - "{{ appserver_config_path }}/config.json:/usr/share/nginx/html/config/config.json"
+
+networks:
+  default:
+    external:
+      name: appserver_network

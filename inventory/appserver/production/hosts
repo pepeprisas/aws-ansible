@@ -1,0 +1,2 @@
+[appserver-server-localhost]
+appserver-prod-uk-server    ansible_connection=local
